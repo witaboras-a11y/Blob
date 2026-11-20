@@ -3,6 +3,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Pelacak Blob">
 <meta name="theme-color" content="#090b12">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head><body>
 <title>Pelacak Blob</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -317,6 +320,7 @@ function hint(s,err){ var h=$('hint'); h.textContent=s||HINT; h.style.color=err?
 var facing='user', mirror=true;
 if(window.matchMedia&&matchMedia('(pointer:coarse)').matches){ HINT=''; hint(''); }
 var isPhone=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+var isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 if(isPhone) facing='environment';
 function camSize(){ if(!camV||!camV.videoWidth)return; if(camC.width!==camV.videoWidth||camC.height!==camV.videoHeight){
   camC.width=camV.videoWidth; camC.height=camV.videoHeight; setSize(camV.videoWidth,camV.videoHeight);} }
@@ -344,8 +348,8 @@ function camFail(e){
   var n=e&&e.name;
   if(n==='NotFoundError'||n==='OverconstrainedError') hint('Tidak ada kamera yang terdeteksi di komputer ini.',true);
   else if(n==='NotReadableError') hint('Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu lalu coba lagi.',true);
-  else if(window.claude) hint(isPhone?'Kamera langsung diblokir di dalam Claude. Pakai "Buka video atau gambar" lalu pilih Ambil Video untuk merekam dulu, atau buka versi Safari.':'Kamera diblokir di dalam halaman Claude. Buka file pelacak-blob.html langsung di browser untuk memakai kamera.',true);
-  else if(!window.isSecureContext) hint('Safari hanya mengizinkan kamera di alamat https://. Taruh file ini di hosting https, lalu buka dari sana.',true);
+  else if(window.claude) hint(isPhone?'Kamera langsung diblokir di dalam Claude. Pakai "Buka video atau gambar" lalu pilih Kamera atau Ambil Video untuk merekam dulu, atau buka versi browser di witaboras-a11y.github.io/Blob.':'Kamera diblokir di dalam halaman Claude. Buka file pelacak-blob.html langsung di browser untuk memakai kamera.',true);
+  else if(!window.isSecureContext) hint('Browser hanya mengizinkan kamera di alamat https://. Buka aplikasi ini dari alamat https, misalnya GitHub Pages.',true);
   else hint('Izin kamera ditolak. Izinkan kamera untuk halaman ini di pengaturan browser, lalu coba lagi.',true);
 }
 function stopVideo(){ if(camStream){camStream.getTracks().forEach(function(t){t.stop()});camStream=null;camV=null} $('flipBtn').hidden=true;
@@ -599,11 +603,11 @@ function stamp(){ var d=new Date(); return d.getFullYear()+pad2(d.getMonth()+1)+
 function canShareFile(blob,ext){
   try{ var f=new File([blob],'pelacak-blob.'+ext,{type:blob.type}); return navigator.canShare&&navigator.share&&navigator.canShare({files:[f]})?f:null; }catch(e){ return null; } }
 function save(blob,ext){
-  if(!downloads&&!window.claude&&isPhone){ var f=canShareFile(blob,ext);
+  if(!downloads&&!window.claude&&isIOS){ var f=canShareFile(blob,ext);
     if(f) return navigator.share({files:[f]}).then(function(){ msg('Terkirim. Pilih "Simpan Video" atau "Simpan Gambar" untuk menaruhnya di Foto.'); return true; })
       .catch(function(e){ if(e&&e.name==='AbortError'){ msg('Penyimpanan dibatalkan.'); } else { $('saveBtn').hidden=false; msg('Ketuk "Simpan ulang video" untuk membuka lembar Bagikan.'); } return false; }); }
   if(!downloads&&!window.claude){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pelacak-blob-'+stamp()+'.'+ext;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(a.href)},60000); msg('Tersimpan ke folder unduhan.'); return Promise.resolve(true); }
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(a.href)},60000); msg(isPhone?'Tersimpan ke folder Download. Video dan gambar juga muncul di Galeri.':'Tersimpan ke folder unduhan.'); return Promise.resolve(true); }
   if(!downloads){ msg('Menyimpan file tidak tersedia di tampilan ini.',true); return Promise.resolve(false); }
   return downloads.save({filename:'pelacak-blob-'+stamp()+'.'+ext,data:blob}).then(function(){ msg('Tersimpan.'); return true; })
     .catch(function(e){ var c=e&&e.code;
@@ -630,7 +634,7 @@ $('recBtn').addEventListener('click',function(){
     if(video){ video.loop=true; video.removeEventListener('ended',stopRec); if(!paused)video.play().catch(function(){}); }
     mr=null; if(!chunks.length){ msg('Rekaman kosong. Coba lagi.',true); return; }
     lastBlob=new Blob(chunks,{type:mime}); $('saveBtn').hidden=false;
-    if(!downloads&&!window.claude&&isPhone){ $('saveBtn').textContent='Simpan video'; msg('Rekaman selesai ('+(lastBlob.size/1048576).toFixed(1)+' MB). Ketuk "Simpan video", lalu pilih "Simpan Video".'); return; }
+    if(!downloads&&!window.claude&&isIOS){ $('saveBtn').textContent='Simpan video'; msg('Rekaman selesai ('+(lastBlob.size/1048576).toFixed(1)+' MB). Ketuk "Simpan video", lalu pilih "Simpan Video".'); return; }
     msg('Rekaman selesai ('+(lastBlob.size/1048576).toFixed(1)+' MB). Menunggu konfirmasi simpan…'); save(lastBlob,lastExt);
   };
   var limit=kind==='camera'?600:8;
@@ -642,7 +646,7 @@ $('recBtn').addEventListener('click',function(){
 });
 $('saveBtn').addEventListener('click',function(){ if(lastBlob)save(lastBlob,lastExt) });
 $('pngBtn').addEventListener('click',function(){
-  if(!downloads&&!window.claude&&isPhone){ try{ var du=out.toDataURL('image/png'), bs=atob(du.split(',')[1]), ar=new Uint8Array(bs.length);
+  if(!downloads&&!window.claude&&isIOS){ try{ var du=out.toDataURL('image/png'), bs=atob(du.split(',')[1]), ar=new Uint8Array(bs.length);
     for(var i=0;i<bs.length;i++)ar[i]=bs.charCodeAt(i); save(new Blob([ar],{type:'image/png'}),'png'); }catch(e){ msg('Gambar tidak bisa dibuat.',true); } return; }
   out.toBlob(function(b){ if(b)save(b,'png'); else msg('Gambar tidak bisa dibuat.',true); },'image/png'); });
 (window.claude&&window.claude.use?window.claude.use('downloads'):Promise.resolve(null)).then(function(d){
